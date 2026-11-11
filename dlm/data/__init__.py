@@ -7,10 +7,14 @@ from .base import Batch, Task
 from .vocab import Vocab
 from .function_compose import FunctionCompose
 from .graph_reach import GraphReach
+from .pronto_qa import ProntoQATask
+from .bbh_shuffled_objects import BBHShuffledObjectsTask
 
 TASKS: Dict[str, Type[Task]] = {
     "function_compose": FunctionCompose,
     "graph_reach": GraphReach,
+    "pronto_qa": ProntoQATask,
+    "bbh_shuffled_objects": BBHShuffledObjectsTask,
 }
 
 
@@ -20,4 +24,6 @@ def make_task(name: str, **kwargs) -> Task:
     return TASKS[name](**kwargs)
 
 
-__all__ = ["Batch", "Task", "Vocab", "make_task", "TASKS"]
+__all__ = [
+    "Batch", "Task", "Vocab", "make_task", "TASKS", "BBHShuffledObjectsTask",
+]

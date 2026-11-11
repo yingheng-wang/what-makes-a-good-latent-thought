@@ -58,6 +58,9 @@ def build_argparser():
     p.add_argument("--depths", type=int, nargs="+", default=[2, 4, 8, 16, 32])
     p.add_argument("--out", required=True)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--slot-buffer", action="store_true", help="enable EntitySlotBuffer in ConceptAR")
+    p.add_argument("--n-slots", type=int, default=5, help="number of coordinate slots in EntitySlotBuffer")
+    p.add_argument("--gru-buffer", action="store_true", help="Equip ConceptAR with parameter-matched GRU memory.")
     return p
 
 
@@ -86,6 +89,10 @@ def main(argv=None):
                            answer_mode=args.answer_mode, p_edge=0.6, out_degree=2,
                            walker=(args.group in ("walker", "walkerids")),
                            trace_ids=(args.group == "walkerids"))
+    elif args.task == "pronto_qa":
+        task_kwargs = dict(max_depth=args.task_max_depth, answer_mode=args.answer_mode)
+    elif args.task == "bbh_shuffled_objects":
+        task_kwargs = dict(n=args.task_n, max_depth=args.task_max_depth, answer_mode=args.answer_mode)
     task = make_task(args.task, **task_kwargs)
 
     m_p = _concepts(task.prompt_len, cond_ae.R)
@@ -94,16 +101,41 @@ def main(argv=None):
 
     mdim = args.model_dim or None
     if args.gen == "diffusion":
-        gen = ConceptFlowMatching(d, args.layers, args.heads, max_concepts, model_dim=mdim,
-                                  block=args.block)
-        gen_kwargs = dict(d_concept=d, n_layers=args.layers, n_heads=args.heads,
-                          max_concepts=max_concepts, model_dim=mdim, block=args.block)
+        gen = ConceptFlowMatching(
+            d, args.layers, args.heads, max_concepts, model_dim=mdim, block=args.block
+        )
+        gen_kwargs = dict(
+            d_concept=d,
+            n_layers=args.layers,
+            n_heads=args.heads,
+            max_concepts=max_concepts,
+            model_dim=mdim,
+            block=args.block,
+        )
     else:
-        gen = ConceptAR(d, args.layers, args.heads, max_concepts, args.head,
-                        args.head_inner_steps, model_dim=mdim)
-        gen_kwargs = dict(d_concept=d, n_layers=args.layers, n_heads=args.heads,
-                          max_concepts=max_concepts, head=args.head,
-                          head_inner_steps=args.head_inner_steps, model_dim=mdim)
+        gen = ConceptAR(
+            d_concept=ae.cfg.d_concept,
+            n_layers=args.layers,
+            n_heads=args.heads,
+            max_concepts=max_concepts,
+            head=args.head,
+            head_inner_steps=args.head_inner_steps,
+            model_dim=mdim,
+            use_slot_buffer=getattr(args, "slot_buffer", False),
+            use_gru_buffer=getattr(args, "gru_buffer", False),
+        )
+        gen_kwargs = dict(
+            d_concept=d,
+            n_layers=args.layers,
+            n_heads=args.heads,
+            max_concepts=max_concepts,
+            head=args.head,
+            head_inner_steps=args.head_inner_steps,
+            model_dim=mdim,
+            use_slot_buffer=getattr(args, "slot_buffer", False),
+            n_slots=getattr(args, "n_slots", 5),
+            use_gru_buffer=getattr(args, "gru_buffer", False),
+        )
 
     sampler = TaskSampler(task, args.depths, args.batch_size, device, seed=args.seed)
 
